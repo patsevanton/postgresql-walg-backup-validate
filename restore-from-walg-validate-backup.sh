@@ -38,11 +38,11 @@ END
         if [ $rtn -ne 0 ]; then
             echo "Postgres didn't start"
         else
-            echo "Postgres start, will start pg_dumpall"
+            echo "Postgres started, pg_dumpall started"
             pg_dumpall -h /var/run/postgresql > /dev/null
         fi
         /usr/pgsql-$pg_major_version/bin/pg_ctl stop -l logfile
     else
-        echo "Segment name doesn't contain pg96"
+        echo "S3 bucket name doesn't contain pg96"
     fi
 done
