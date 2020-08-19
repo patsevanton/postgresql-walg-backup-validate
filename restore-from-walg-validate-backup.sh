@@ -23,22 +23,26 @@ for i in "${array_bucket[@]}"; do
    "WALG_COMPRESSION_METHOD":"brotli"
 }
 END
-        rm -rf /var/lib/pgsql/9.6/data
+        rm -rf /var/lib/pgsql/$pg_major_version/data
         mkdir -p /var/lib/pgsql/$pg_major_version/data
         wal-g backup-fetch /var/lib/pgsql/$pg_major_version/data/ LATEST
-        echo "restore_command = '/usr/local/bin/wal-g wal-fetch "%f" "%p"'" > /var/lib/pgsql/$pg_major_version/data/recovery.conf
-        /usr/pgsql-$pg_major_version/bin/pg_ctl start -l logfile
-
-        /usr/pgsql-$pg_major_version/bin/pg_ctl start -D /var/lib/postgres/data > /dev/null 2>&1
+        # in postgres 12+ recovery.conf is absent all parameters in main config file
+        if [ $(echo "${pg_major_version} < 12" | bc) -eq 1 ]; then
+            echo "restore_command = '/usr/local/bin/wal-g wal-fetch "%f" "%p"'" > /var/lib/pgsql/$pg_major_version/data/recovery.conf
+        else
+            echo "restore_command = '/usr/local/bin/wal-g wal-fetch "%f" "%p"'" > /var/lib/pgsql/$pg_major_version/data/postgresql.auto.conf
+            touch /var/lib/pgsql/$pg_major_version/data/recovery.signal
+        fi
+        /usr/pgsql-$pg_major_version/bin/pg_ctl start -D /var/lib/pgsql/$pg_major_version/data > /dev/null 2>&1
         rtn=$?
         if [ $rtn -ne 0 ]; then
-            echo "not running"
+            echo "Postgres didn't start"
         else
-            echo "ok ok"
+            echo "Postgres start, will start pg_dumpall"
+            pg_dumpall -h /var/run/postgresql > /dev/null
         fi
-        pg_dumpall -h /var/run/postgresql > /dev/null
         /usr/pgsql-$pg_major_version/bin/pg_ctl stop -l logfile
     else
-        echo "bucket dont contain pg96 in name"
+        echo "Segment name doesn't contain pg96"
     fi
 done
